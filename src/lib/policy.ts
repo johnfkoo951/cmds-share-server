@@ -2,15 +2,15 @@ import { NextRequest } from 'next/server';
 import { ShareRow } from './supabase';
 
 /**
- * Governance policy knobs. Each function has a working default; the branch bodies
- * are deliberately small so policy changes stay one-screen reviews.
+ * Governance policy knobs, decided 2026-08 (yohan):
+ *  ① collision: vault-protected upsert  ② expiry: title tombstone  ③ views: skip bot UAs
+ * Each branch is deliberately small so future policy changes stay one-screen reviews.
  */
 
 /**
- * TODO(yohan) — contribution point 1: slug/collision policy.
- * The plugin generates the shortId; the server currently upserts (same id = overwrite).
- * Return 'reject' to 409 when an id exists but belongs to a DIFFERENT vault
- * (protects against cross-vault overwrite with a stolen token), or 'upsert' to always overwrite.
+ * Same vault re-uploading an id = re-share (overwrite, link preserved).
+ * A different vault claiming an existing id gets a 409 — a leaked token
+ * can't silently replace another vault's published note.
  */
 export function collisionPolicy(existing: ShareRow | null, incomingVaultId: string): 'upsert' | 'reject' {
   if (existing && existing.vault_id !== incomingVaultId) return 'reject';
@@ -18,18 +18,23 @@ export function collisionPolicy(existing: ShareRow | null, incomingVaultId: stri
 }
 
 /**
- * TODO(yohan) — contribution point 2: expiry semantics.
- * 'gone' → hard 410 page with no note information.
- * 'tombstone' → 410 page that still shows the note title, so the visitor knows what they missed.
+ * Expired shares show a 410 page that still names the note, so a visitor
+ * knows what they missed and can ask the author to re-share.
+ * (Content itself is already unreachable; the cron hard-deletes after the grace period.)
  */
 export function expiredPageMode(_row: ShareRow): 'gone' | 'tombstone' {
-  return 'gone';
+  return 'tombstone';
 }
 
+const BOT_UA = /bot|crawler|spider|crawling|preview|facebookexternalhit|slurp|scrape|kakaotalk-scrap|slack|discord|telegram|whatsapp|curl|wget|python-requests|headless/i;
+
 /**
- * TODO(yohan) — contribution point 3: view-count filter.
- * Default counts every GET. Options: skip known bot UAs, or dedupe per IP-hash per hour.
+ * Link-preview crawlers (KakaoTalk, Slack, Discord, search bots) fetch every
+ * shared URL the moment it's pasted — without this filter, view counts measure
+ * messenger usage, not readers.
  */
-export function shouldCountView(_req: NextRequest): boolean {
-  return true;
+export function shouldCountView(req: NextRequest): boolean {
+  const ua = req.headers.get('user-agent') || '';
+  if (!ua) return false;
+  return !BOT_UA.test(ua);
 }
