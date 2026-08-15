@@ -1,0 +1,6 @@
+{
+  "regions": ["icn1"],
+  "crons": [
+    { "path": "/api/cron/purge", "schedule": "23 3 * * *" }
+  ]
+}

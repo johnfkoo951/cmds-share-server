@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# cmds-share-server
 
-## Getting Started
+Governance server for the [CMDS Share](https://github.com/johnfkoo951/cmds-share) Obsidian plugin — hosts shared notes at **share.cmdspace.work** with a server-side registry (view counts, expiry enforcement, revocation).
 
-First, run the development server:
+> Part of the [CMDSPACE](https://cmdspace.work) ecosystem. By CMDSPACE.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Stack
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Next.js (App Router) + Supabase (Postgres + private Storage) + Vercel (`icn1`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Auth | Purpose |
+|---|---|---|
+| `POST /v1/file/upload` | `x-cmds-token` | Upload HTML/CSS/asset (raw bytes + `x-cmds-*` meta headers) |
+| `POST /v1/file/delete` | `x-cmds-token` | Delete file + registry row |
+| `GET /v1/notes?vaultId=` | `x-cmds-token` | Share registry list (CMS reconcile) |
+| `POST /v1/notes/revoke` | `x-cmds-token` | Soft revoke / restore |
+| `GET /{shortId}` | public | Serve shared note (404 / 410 expired·revoked / counts views) |
+| `GET /f/css/…`, `GET /f/assets/…` | public | Content-addressed files, immutable cache |
+| `GET /health` | public | Health check |
+| `GET /api/cron/purge` | `CRON_SECRET` | Daily purge of expired shares (7-day grace) |
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+1. Supabase project → run `supabase/migrations/0001_init.sql` → create **private** bucket `share-files`
+2. Env (see `.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CMDS_API_TOKENS` (comma-separated device tokens), `PUBLIC_BASE_URL`, `CRON_SECRET`
+3. `vercel deploy --prod` + Cloudflare CNAME `share → cname.vercel-dns.com`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Policy knobs (slug collision / expiry page / view-count filter) live in `src/lib/policy.ts`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Author: Yohan Koo (CMDSPACE) · https://cmdspace.work
