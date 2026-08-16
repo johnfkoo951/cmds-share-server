@@ -1,5 +1,7 @@
 # cmds-share-server
 
+> 🇬🇧 English · [🇰🇷 한국어](README.ko.md)
+
 Governance server for the [CMDS Share](https://github.com/johnfkoo951/cmds-share) Obsidian plugin — hosts shared notes at **share.cmdspace.work** with a server-side registry (view counts, expiry enforcement, revocation).
 
 > Part of the [CMDSPACE](https://cmdspace.work) ecosystem. By CMDSPACE.
