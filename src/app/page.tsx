@@ -15,6 +15,12 @@ interface RemoteNote {
   sizeBytes: number;
   createdAt: number;
   updatedAt: number;
+  owner?: string;
+}
+
+interface Viewer {
+  owner: string;
+  admin: boolean;
 }
 
 function fmtDate(ts: number): string {
@@ -37,6 +43,7 @@ export default function Dashboard() {
   const [token, setToken] = useState<string | null>(null);
   const [tokenInput, setTokenInput] = useState('');
   const [notes, setNotes] = useState<RemoteNote[] | null>(null);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState('');
@@ -71,6 +78,7 @@ export default function Dashboard() {
     }
     const data = await res.json();
     setNotes(data.notes || []);
+    setViewer(data.viewer || null);
   }, [api, token]);
 
   useEffect(() => { load(); }, [load]);
@@ -86,6 +94,7 @@ export default function Dashboard() {
     try { localStorage.removeItem(TOKEN_KEY); } catch {}
     setToken(null);
     setNotes(null);
+    setViewer(null);
     setTokenInput('');
   };
 
@@ -189,7 +198,8 @@ export default function Dashboard() {
           <div className="card">
             <div className="toolbar">
               <span className="muted" style={{ fontSize: 12.5 }}>
-                Sorted by last update · encrypted notes can only be read with their original key link
+                {viewer?.owner ? (viewer.admin ? `${viewer.owner} (admin — all uploaders shown)` : `${viewer.owner} — your shares only`) : 'Sorted by last update'}
+                {' · encrypted notes can only be read with their original key link'}
               </span>
               <div className="btns">
                 <button className="btn" onClick={load}>Refresh</button>
@@ -216,6 +226,7 @@ export default function Dashboard() {
                       {st === 'revoked' && <span className="pill pill-revoked">revoked</span>}
                       {st === 'expired' && <span className="pill pill-expired">expired</span>}
                       {n.encrypted && <span className="pill pill-encrypted">e2e</span>}
+                      {n.owner != null && <span className="pill pill-owner">{n.owner || 'unattributed'}</span>}
                     </div>
                     <div className="share-meta">
                       /{n.shortId} · {n.viewCount} views · {fmtSize(n.sizeBytes)} · updated {fmtDate(n.updatedAt)}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkToken, unauthorized } from '@/lib/auth';
+import { resolveToken, unauthorized } from '@/lib/auth';
 import { serviceClient, BUCKET, ShareRow } from '@/lib/supabase';
 import { collisionPolicy } from '@/lib/policy';
 
@@ -18,7 +18,8 @@ function decodeTitle(header: string | null): string {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkToken(req)) return unauthorized();
+  const id = resolveToken(req);
+  if (!id) return unauthorized();
 
   const filename = req.headers.get('x-cmds-filename') || '';
   if (!FILENAME_RE.test(filename)) {
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
       title: decodeTitle(req.headers.get('x-cmds-title')),
       encrypted: req.headers.get('x-cmds-encrypted') === '1',
       vault_id: vaultId,
+      owner: id.owner,
       size_bytes: body.length,
       expires_at: expiresAt,
       revoked: false, // re-sharing un-revokes
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest) {
     });
     if (rowError) return NextResponse.json({ error: rowError.message }, { status: 500 });
   } else {
-    await db.from('share_assets').upsert({ path: filename, vault_id: vaultId });
+    await db.from('share_assets').upsert({ path: filename, vault_id: vaultId, owner: id.owner });
   }
 
   const { error: storageError } = await db.storage

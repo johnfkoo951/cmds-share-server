@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkToken, unauthorized } from '@/lib/auth';
-import { serviceClient } from '@/lib/supabase';
+import { resolveToken, unauthorized, forbidden } from '@/lib/auth';
+import { serviceClient, ShareRow } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  if (!checkToken(req)) return unauthorized();
+  const id = resolveToken(req);
+  if (!id) return unauthorized();
 
   let shortId = '';
   let revoked = true;
@@ -21,6 +22,15 @@ export async function POST(req: NextRequest) {
   }
 
   const db = serviceClient();
+
+  const { data: row } = await db
+    .from('shares')
+    .select('owner')
+    .eq('short_id', shortId)
+    .maybeSingle<Pick<ShareRow, 'owner'>>();
+  if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  if (!id.admin && row.owner !== id.owner) return forbidden();
+
   const { error } = await db
     .from('shares')
     .update({ revoked, updated_at: new Date().toISOString() })

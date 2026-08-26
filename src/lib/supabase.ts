@@ -19,6 +19,7 @@ export interface ShareRow {
   title: string;
   encrypted: boolean;
   vault_id: string;
+  owner: string;
   size_bytes: number;
   view_count: number;
   expires_at: string | null;
