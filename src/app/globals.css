@@ -104,6 +104,29 @@ body {
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
 .toolbar .btns { display: flex; gap: 8px; }
 
+.tabs { display: flex; gap: 4px; margin: 1.4rem 0 0.2rem; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab {
+  font-size: 13px; font-weight: 600; padding: 8px 12px; border: none; background: none;
+  color: var(--fg-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  white-space: nowrap; display: flex; align-items: center; gap: 6px;
+}
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .count { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--bg-subtle); color: var(--fg-faint); }
+.tab.active .count { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+
+.member-row {
+  display: grid; grid-template-columns: 1.6fr repeat(4, 1fr) 1.2fr; gap: 10px; align-items: center;
+  padding: 0.8rem 0.4rem; border-bottom: 1px solid var(--line); font-size: 13.5px;
+}
+.member-row:last-child { border-bottom: none; }
+.member-row.head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-faint); }
+.member-row .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.member-row .num { font-variant-numeric: tabular-nums; }
+.member-row.me .name { color: var(--accent); }
+.member-row .link { background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.member-row .link:hover { color: var(--accent); }
+
 .footer { margin-top: 3rem; text-align: center; font-size: 12px; color: var(--fg-faint); }
 .footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
 
@@ -116,4 +139,6 @@ body {
 @media (max-width: 640px) {
   .stat-row { grid-template-columns: repeat(2, 1fr); }
   .share-item { flex-wrap: wrap; }
+  .member-row { grid-template-columns: 1.4fr repeat(2, 1fr); }
+  .member-row .hide-sm { display: none; }
 }

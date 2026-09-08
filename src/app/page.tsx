@@ -23,6 +23,22 @@ interface Viewer {
   admin: boolean;
 }
 
+interface MemberSummary {
+  owner: string;
+  total: number;
+  live: number;
+  views: number;
+  encrypted: number;
+  lastUpdated: number;
+}
+
+const TEAM_TAB = '__team__';
+const ALL_TAB = '__all__';
+
+function ownerLabel(owner: string): string {
+  return owner || 'unattributed';
+}
+
 function fmtDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
@@ -44,6 +60,8 @@ export default function Dashboard() {
   const [tokenInput, setTokenInput] = useState('');
   const [notes, setNotes] = useState<RemoteNote[] | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [members, setMembers] = useState<MemberSummary[]>([]);
+  const [tab, setTab] = useState<string>(ALL_TAB);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState('');
@@ -79,6 +97,7 @@ export default function Dashboard() {
     const data = await res.json();
     setNotes(data.notes || []);
     setViewer(data.viewer || null);
+    setMembers(data.members || []);
   }, [api, token]);
 
   useEffect(() => { load(); }, [load]);
@@ -95,6 +114,8 @@ export default function Dashboard() {
     setToken(null);
     setNotes(null);
     setViewer(null);
+    setMembers([]);
+    setTab(ALL_TAB);
     setTokenInput('');
   };
 
@@ -132,14 +153,30 @@ export default function Dashboard() {
     } else showToast('Delete failed');
   };
 
-  const stats = notes
+  // Admin: one tab per uploader (+ All). Member: own shares only, but the
+  // Team tab still shows everyone's aggregate usage.
+  const isAdmin = !!viewer?.admin;
+  const visible = notes
+    ? isAdmin && tab !== ALL_TAB && tab !== TEAM_TAB
+      ? notes.filter(n => (n.owner || '') === tab)
+      : notes
+    : null;
+
+  const stats = visible
     ? {
-        total: notes.length,
-        views: notes.reduce((s, n) => s + n.viewCount, 0),
-        live: notes.filter(n => statusOf(n) === 'live').length,
-        encrypted: notes.filter(n => n.encrypted).length,
+        total: visible.length,
+        views: visible.reduce((s, n) => s + n.viewCount, 0),
+        live: visible.filter(n => statusOf(n) === 'live').length,
+        encrypted: visible.filter(n => n.encrypted).length,
       }
     : null;
+
+  const teamTotals = members.reduce(
+    (acc, m) => ({ total: acc.total + m.total, live: acc.live + m.live, views: acc.views + m.views, encrypted: acc.encrypted + m.encrypted }),
+    { total: 0, live: 0, views: 0, encrypted: 0 }
+  );
+  const shownStats = tab === TEAM_TAB ? teamTotals : stats;
+  const openMember = (owner: string) => { if (isAdmin) setTab(owner); };
 
   return (
     <main className="wrap">
@@ -188,17 +225,70 @@ export default function Dashboard() {
 
       {token && notes && (
         <>
-          <div className="stat-row">
-            <div className="stat"><b>{stats!.total}</b><span>Shared notes</span></div>
-            <div className="stat"><b>{stats!.views}</b><span>Total views</span></div>
-            <div className="stat"><b>{stats!.live}</b><span>Live</span></div>
-            <div className="stat"><b>{stats!.encrypted}</b><span>Encrypted</span></div>
+          <div className="tabs" role="tablist">
+            <button className={`tab${tab === ALL_TAB ? ' active' : ''}`} role="tab" onClick={() => setTab(ALL_TAB)}>
+              {isAdmin ? 'All' : 'My shares'} <span className="count">{notes.length}</span>
+            </button>
+            {isAdmin && members.map(m => (
+              <button key={m.owner} className={`tab${tab === m.owner ? ' active' : ''}`} role="tab" onClick={() => setTab(m.owner)}>
+                {ownerLabel(m.owner)} <span className="count">{m.total}</span>
+              </button>
+            ))}
+            <button className={`tab${tab === TEAM_TAB ? ' active' : ''}`} role="tab" onClick={() => setTab(TEAM_TAB)}>
+              Team <span className="count">{members.length}</span>
+            </button>
           </div>
 
+          <div className="stat-row">
+            <div className="stat"><b>{shownStats!.total}</b><span>Shared notes</span></div>
+            <div className="stat"><b>{shownStats!.views}</b><span>Total views</span></div>
+            <div className="stat"><b>{shownStats!.live}</b><span>Live</span></div>
+            <div className="stat"><b>{shownStats!.encrypted}</b><span>Encrypted</span></div>
+          </div>
+
+          {tab === TEAM_TAB && (
+            <div className="card">
+              <div className="toolbar">
+                <span className="muted" style={{ fontSize: 12.5 }}>
+                  Workspace usage by member — counts only{isAdmin ? '; click a name to open their shares' : ''}
+                </span>
+                <div className="btns">
+                  <button className="btn" onClick={load}>Refresh</button>
+                  <button className="btn" onClick={signOut}>Sign out</button>
+                </div>
+              </div>
+              <div className="member-row head">
+                <span>Member</span><span className="num">Shares</span><span className="num">Live</span>
+                <span className="num hide-sm">Views</span><span className="num hide-sm">E2E</span><span className="hide-sm">Last update</span>
+              </div>
+              {members.map(m => (
+                <div className={`member-row${m.owner === viewer?.owner ? ' me' : ''}`} key={m.owner}>
+                  <span className="name">
+                    {isAdmin
+                      ? <button className="link" onClick={() => openMember(m.owner)}>{ownerLabel(m.owner)}</button>
+                      : ownerLabel(m.owner)}
+                    {m.owner === viewer?.owner && <span className="pill pill-owner">you</span>}
+                  </span>
+                  <span className="num">{m.total}</span>
+                  <span className="num">{m.live}</span>
+                  <span className="num hide-sm">{m.views}</span>
+                  <span className="num hide-sm">{m.encrypted}</span>
+                  <span className="hide-sm" style={{ color: 'var(--fg-faint)', fontSize: 12.5 }}>{fmtDate(m.lastUpdated)}</span>
+                </div>
+              ))}
+              {members.length === 0 && <p className="muted" style={{ padding: '1.2rem 0.4rem' }}>No shares yet.</p>}
+            </div>
+          )}
+
+          {tab !== TEAM_TAB && visible && (
           <div className="card">
             <div className="toolbar">
               <span className="muted" style={{ fontSize: 12.5 }}>
-                {viewer?.owner ? (viewer.admin ? `${viewer.owner} (admin — all uploaders shown)` : `${viewer.owner} — your shares only`) : 'Sorted by last update'}
+                {viewer?.owner
+                  ? viewer.admin
+                    ? tab === ALL_TAB ? `${viewer.owner} (admin — all uploaders shown)` : `Shares by ${ownerLabel(tab)}`
+                    : `${viewer.owner} — your shares only`
+                  : 'Sorted by last update'}
                 {' · encrypted notes can only be read with their original key link'}
               </span>
               <div className="btns">
@@ -207,13 +297,13 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {notes.length === 0 && (
+            {visible.length === 0 && (
               <p className="muted" style={{ padding: '1.2rem 0.4rem' }}>
                 No shared notes yet. Share one from Obsidian with the CMDS Share plugin.
               </p>
             )}
 
-            {notes.map(n => {
+            {visible.map(n => {
               const st = statusOf(n);
               return (
                 <div className="share-item" key={n.shortId}>
@@ -244,6 +334,7 @@ export default function Dashboard() {
               );
             })}
           </div>
+          )}
         </>
       )}
 
