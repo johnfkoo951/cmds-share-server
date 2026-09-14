@@ -18,7 +18,7 @@ function decodeTitle(header: string | null): string {
 }
 
 export async function POST(req: NextRequest) {
-  const id = resolveToken(req);
+  const id = await resolveToken(req);
   if (!id) return unauthorized();
 
   const filename = req.headers.get('x-cmds-filename') || '';

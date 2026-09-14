@@ -142,3 +142,43 @@ body {
   .member-row { grid-template-columns: 1.4fr repeat(2, 1fr); }
   .member-row .hide-sm { display: none; }
 }
+
+/* --- Members tab: token issuing and usage --- */
+.issue-row {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 0.2rem 0.4rem 1rem; border-bottom: 1px solid var(--line); margin-bottom: 0.4rem;
+}
+.issue-row .input { flex: 1 1 200px; width: auto; }
+.check {
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
+  font-weight: 600; color: var(--fg-muted); white-space: nowrap; cursor: pointer;
+}
+.check input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+.token-row {
+  display: grid; grid-template-columns: 1.5fr 0.9fr 0.9fr 0.6fr 1.1fr auto; gap: 10px;
+  align-items: center; padding: 0.8rem 0.4rem; border-bottom: 1px solid var(--line); font-size: 13.5px;
+}
+.token-row:last-child { border-bottom: none; }
+.token-row.head {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--fg-faint);
+}
+.token-row .name { font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.token-row .num { font-variant-numeric: tabular-nums; }
+.token-row .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg-faint); }
+.token-row .btns { display: flex; gap: 6px; justify-content: flex-end; }
+
+.secret-card { border-color: var(--accent); }
+.secret-head { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.secret-value { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.secret-value code {
+  flex: 1 1 280px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; word-break: break-all; padding: 10px 12px; border-radius: 10px;
+  background: var(--bg-subtle); border: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .token-row { grid-template-columns: 1.3fr 0.8fr auto; }
+  .token-row .hide-sm { display: none; }
+}

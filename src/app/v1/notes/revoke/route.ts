@@ -5,7 +5,7 @@ import { serviceClient, ShareRow } from '@/lib/supabase';
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
-  const id = resolveToken(req);
+  const id = await resolveToken(req);
   if (!id) return unauthorized();
 
   let shortId = '';

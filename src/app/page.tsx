@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import TokensPanel, { TokensPayload } from './TokensPanel';
+
 const LOGO = 'https://cmdspace.work/assets/logos/cmds-logo-round.png';
 const TOKEN_KEY = 'cmds-admin-token';
 
@@ -21,6 +23,7 @@ interface RemoteNote {
 interface Viewer {
   owner: string;
   admin: boolean;
+  tokenId?: string | null;
 }
 
 interface MemberSummary {
@@ -33,6 +36,7 @@ interface MemberSummary {
 }
 
 const TEAM_TAB = '__team__';
+const TOKENS_TAB = '__tokens__';
 const ALL_TAB = '__all__';
 
 function ownerLabel(owner: string): string {
@@ -65,6 +69,8 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState('');
+  const [tokenData, setTokenData] = useState<TokensPayload | null>(null);
+  const [tokenError, setTokenError] = useState('');
 
   useEffect(() => {
     try { setToken(localStorage.getItem(TOKEN_KEY)); } catch {}
@@ -102,6 +108,26 @@ export default function Dashboard() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Member tokens load when the tab is opened rather than on mount, so this
+  // never fires for the members who cannot see the tab at all.
+  const loadTokens = useCallback(async () => {
+    const res = await api('/v1/tokens');
+    if (!res.ok) {
+      setTokenError(res.status === 403 ? 'Admin token required to manage members.' : `Server error (${res.status})`);
+      setTokenData(null);
+      return;
+    }
+    const data = await res.json();
+    setTokenError('');
+    setTokenData({ tokens: data.tokens || [], legacy: data.legacy || [] });
+  }, [api]);
+
+  const openTokens = () => {
+    setTab(TOKENS_TAB);
+    setTokenData(null);
+    void loadTokens();
+  };
+
   const saveToken = () => {
     const t = tokenInput.trim();
     if (!t) return;
@@ -117,6 +143,8 @@ export default function Dashboard() {
     setMembers([]);
     setTab(ALL_TAB);
     setTokenInput('');
+    setTokenData(null);
+    setTokenError('');
   };
 
   const copyLink = (n: RemoteNote) => {
@@ -177,6 +205,8 @@ export default function Dashboard() {
   );
   const shownStats = tab === TEAM_TAB ? teamTotals : stats;
   const openMember = (owner: string) => { if (isAdmin) setTab(owner); };
+  // Lets the Members tab show each token against what its holder has actually published.
+  const shareCounts = new Map(members.map(m => [m.owner, m.total]));
 
   return (
     <main className="wrap">
@@ -237,14 +267,33 @@ export default function Dashboard() {
             <button className={`tab${tab === TEAM_TAB ? ' active' : ''}`} role="tab" onClick={() => setTab(TEAM_TAB)}>
               Team <span className="count">{members.length}</span>
             </button>
+            {isAdmin && (
+              <button className={`tab${tab === TOKENS_TAB ? ' active' : ''}`} role="tab" onClick={openTokens}>
+                Members
+              </button>
+            )}
           </div>
 
+          {tab !== TOKENS_TAB && (
           <div className="stat-row">
             <div className="stat"><b>{shownStats!.total}</b><span>Shared notes</span></div>
             <div className="stat"><b>{shownStats!.views}</b><span>Total views</span></div>
             <div className="stat"><b>{shownStats!.live}</b><span>Live</span></div>
             <div className="stat"><b>{shownStats!.encrypted}</b><span>Encrypted</span></div>
           </div>
+          )}
+
+          {tab === TOKENS_TAB && (
+            <TokensPanel
+              api={api}
+              showToast={showToast}
+              viewerTokenId={viewer?.tokenId ?? null}
+              shareCounts={shareCounts}
+              data={tokenData}
+              error={tokenError}
+              reload={loadTokens}
+            />
+          )}
 
           {tab === TEAM_TAB && (
             <div className="card">
@@ -280,7 +329,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {tab !== TEAM_TAB && visible && (
+          {tab !== TEAM_TAB && tab !== TOKENS_TAB && visible && (
           <div className="card">
             <div className="toolbar">
               <span className="muted" style={{ fontSize: 12.5 }}>

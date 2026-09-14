@@ -14,7 +14,7 @@ interface MemberSummary {
 }
 
 export async function GET(req: NextRequest) {
-  const id = resolveToken(req);
+  const id = await resolveToken(req);
   if (!id) return unauthorized();
 
   const vaultId = req.nextUrl.searchParams.get('vaultId');
@@ -64,5 +64,9 @@ export async function GET(req: NextRequest) {
   }
   const members = [...byOwner.values()].sort((a, b) => b.lastUpdated - a.lastUpdated);
 
-  return NextResponse.json({ notes, members, viewer: { owner: id.owner, admin: id.admin } });
+  return NextResponse.json({
+    notes,
+    members,
+    viewer: { owner: id.owner, admin: id.admin, tokenId: id.tokenId ?? null, source: id.source },
+  });
 }
